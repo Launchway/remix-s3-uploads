@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 const MAX_FILE_SIZE = 1 * 1024; // 1KB
 const ALLOWED_FILE_TYPES = ["text/plain"];
 
+// Update this function to always use the same bucket name
 function createS3Client(useCloudflare: boolean) {
   return new S3Client(useCloudflare ? {
     region: "auto",
@@ -52,8 +53,10 @@ export const loader: LoaderFunction = async ({ request }) => {
   const s3Client = createS3Client(useCloudflare);
 
   const key = `uploads/${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+  const bucketName = process.env.UPLOADS_BUCKET_NAME;
+  
   const command = new PutObjectCommand({
-    Bucket: process.env.UPLOADS_BUCKET_NAME,
+    Bucket: bucketName,
     Key: key,
     ContentType: "application/octet-stream",
   });
@@ -65,7 +68,7 @@ export const loader: LoaderFunction = async ({ request }) => {
     const filesWithPresignedUrls = await Promise.all(
       uploadedFiles.map(async (file: { key: string; url: string; uploadedAt: string; originalFileName: string }) => {
         const getCommand = new GetObjectCommand({
-          Bucket: useCloudflare ? process.env.CLOUDFLARE_R2_BUCKET_NAME : process.env.UPLOADS_BUCKET_NAME,
+          Bucket: bucketName,
           Key: file.key,
         });
         const presignedUrl = await getSignedUrl(s3Client, getCommand, { expiresIn: 3600 });
@@ -105,7 +108,7 @@ export const action: ActionFunction = async ({ request }) => {
   }
 
   const useCloudflare = session.get("useCloudflare") || false;
-  const bucketName = useCloudflare ? process.env.CLOUDFLARE_R2_BUCKET_NAME : process.env.UPLOADS_BUCKET_NAME;
+  const bucketName = process.env.UPLOADS_BUCKET_NAME;
   const region = useCloudflare ? "auto" : process.env.AWS_REGION;
   const fileUrl = `https://${bucketName}.${region === "auto" ? "r2.cloudflarestorage.com" : `s3.${region}.amazonaws.com`}/${key}`;
 
@@ -150,7 +153,7 @@ export default function Upload() {
   };
 
   useEffect(() => {
-    if (fetcher.data?.success) {
+    if (fetcher.data && typeof fetcher.data === 'object' && 'success' in fetcher.data) {
       revalidator.revalidate();
     }
   }, [fetcher.data, revalidator]);
