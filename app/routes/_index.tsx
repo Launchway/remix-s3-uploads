@@ -2,8 +2,9 @@ import { json, LoaderFunction, ActionFunction } from "@remix-run/node";
 import { Form, useLoaderData, useActionData, useFetcher, useRevalidator } from "@remix-run/react";
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { createCookieSessionStorage } from "@remix-run/node";
 import { useState, useEffect } from "react";
+import { formatDate } from "../lib/date";
+import { getSession, sessionStorage } from "../lib/sessions";
 
 const MAX_FILE_SIZE = 1 * 1024; // 1KB
 const ALLOWED_FILE_TYPES = ["text/plain"];
@@ -25,24 +26,6 @@ function createS3Client(useCloudflare: boolean) {
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
     },
   });
-}
-
-// Add this new code for session handling
-const sessionStorage = createCookieSessionStorage({
-  cookie: {
-    name: "file_upload_session",
-    secrets: [process.env.SESSION_SECRET || "default_secret"],
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30, // 30 days
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-  },
-});
-
-async function getSession(request: Request) {
-  const cookie = request.headers.get("Cookie");
-  return sessionStorage.getSession(cookie);
 }
 
 export const loader: LoaderFunction = async ({ request }) => {
@@ -128,12 +111,6 @@ export const action: ActionFunction = async ({ request }) => {
   );
 };
 
-// Add this function at the top of the file, outside of any component
-function formatDate(dateString: string): string {
-  const date = new Date(dateString);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
-}
-
 export default function Upload() {
   const loaderData = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
@@ -151,12 +128,6 @@ export default function Upload() {
       { method: "post" }
     );
   };
-
-  useEffect(() => {
-    if (fetcher.data && typeof fetcher.data === 'object' && 'success' in fetcher.data) {
-      revalidator.revalidate();
-    }
-  }, [fetcher.data, revalidator]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
