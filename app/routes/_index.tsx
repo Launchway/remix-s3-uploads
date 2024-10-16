@@ -182,9 +182,9 @@ export default function Upload() {
     <div className="container mx-auto px-4 py-8 max-w-2xl">
       <h1 className="text-3xl font-bold mb-6 text-center">S3/R2 Text File Upload Demo</h1>
       
-      <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Upload Settings</h2>
+      <div className="bg-white border rounded-lg px-8 pt-6 pb-8 mb-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-semibold">Upload Settings</h2>
           <div className="flex items-center">
             <img src={awsLogo} alt="AWS S3" className="h-8 mr-2" />
             <label className="flex items-center cursor-pointer">
@@ -203,45 +203,58 @@ export default function Upload() {
           </div>
         </div>
 
-        <h2 className="text-xl font-semibold mb-4">Generate and Download Dummy File</h2>
-        <p className="mb-4">
-          You can generate and download a sample text file to use in this demo:{" "}
-          <a href="/generate-dummy" className="text-blue-500 hover:text-blue-700 underline">
-            Generate and Download Random Dummy File
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold mb-2">Generate Dummy File</h2>
+          <p className="mb-3">
+            Generate a sample text file to use in this demo:
+          </p>
+          <a 
+            href="/generate-dummy" 
+            className="inline-block bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition duration-300"
+          >
+            Generate Random Dummy File
           </a>
-          {" "}(A new file with a random name will be generated each time)
-        </p>
+          <p className="mt-2 text-sm text-gray-600">
+            (A new file with a random name will be generated each time)
+          </p>
+        </div>
 
-        <h2 className="text-xl font-semibold mb-4">Upload File</h2>
-        <Form method="post" onSubmit={handleSubmit} className="mb-4">
-          <input type="file" name="file" accept=".txt" className="mb-2" />
-          <button type="submit" className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-            Upload to {useCloudflare ? 'Cloudflare R2' : 'AWS S3'}
-          </button>
-        </Form>
-        <p className="text-sm text-gray-600">Only .txt files are allowed. Maximum file size: 1KB.</p>
-        <p className="text-sm text-gray-600">Note: Uploaded files will be cleared regularly.</p>
-        {(actionData?.error || loaderData.error) && <p className="text-red-500 mt-2">Error: {actionData?.error || loaderData.error}</p>}
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold mb-3">Upload File</h2>
+          <Form method="post" onSubmit={handleSubmit} className="mb-3">
+            <input type="file" name="file" accept=".txt" className="mb-3 w-full" />
+            <button type="submit" className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-300">
+              Upload to {useCloudflare ? 'Cloudflare R2' : 'AWS S3'}
+            </button>
+          </Form>
+          <p className="text-sm text-gray-600">Only .txt files are allowed. Maximum file size: 1KB.</p>
+          <p className="text-sm text-gray-600">Note: Uploaded files will be cleared regularly.</p>
+          {(actionData?.error || loaderData.error) && <p className="text-red-500 mt-2">Error: {actionData?.error || loaderData.error}</p>}
+        </div>
       </div>
 
-      <div className="bg-white shadow-md rounded px-8 pt-6 pb-8">
-        <h2 className="text-xl font-semibold mb-4">Your Uploaded Files</h2>
+      <div className="bg-white border rounded-lg px-8 pt-6 pb-8">
+        <h2 className="text-2xl font-semibold mb-4">Your Uploaded Files</h2>
         {loaderData.uploadedFiles && loaderData.uploadedFiles.length > 0 ? (
-          <ul className="list-disc pl-5">
+          <ul className="space-y-2">
             {loaderData.uploadedFiles.map((file: { key: string; url: string; uploadedAt: string; originalFileName: string; presignedUrl: string }, index: number) => (
-              <li key={index} className="mb-2">
-                <a href={file.presignedUrl} download={file.originalFileName} className="text-blue-500 hover:text-blue-700">
-                  {file.originalFileName}
-                </a>
-                {" "}
-                <span className="text-sm text-gray-600">
-                  (Uploaded on: {formatDate(file.uploadedAt)})
-                </span>
+              <li key={index} className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <div>
+                  <a href={file.presignedUrl} download={file.originalFileName} className="text-blue-500 hover:text-blue-700 font-medium">
+                    {file.originalFileName}
+                  </a>
+                  <span className="text-sm text-gray-600 ml-2">
+                    (Uploaded on: {formatDate(file.uploadedAt)})
+                  </span>
+                </div>
               </li>
             ))}
           </ul>
         ) : (
-          <p>No files uploaded yet.</p>
+          <p className="text-gray-600">No files uploaded yet.</p>
         )}
       </div>
     </div>
