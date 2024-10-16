@@ -5,6 +5,9 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { useState, useEffect } from "react";
 import { formatDate } from "../lib/date";
 import { getSession, sessionStorage } from "../lib/sessions";
+// Add these imports
+import awsLogo from "../images/s3.png";
+import cloudflareLogo from "../images/cloudflare.png";
 
 const MAX_FILE_SIZE = 1 * 1024; // 1KB
 const ALLOWED_FILE_TYPES = ["text/plain"];
@@ -182,19 +185,22 @@ export default function Upload() {
       <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold">Upload Settings</h2>
-          <label className="flex items-center cursor-pointer">
-            <span className="mr-2">Use Cloudflare R2</span>
-            <div className="relative">
-              <input
-                type="checkbox"
-                className="sr-only"
-                checked={useCloudflare}
-                onChange={handleToggleCloudflare}
-              />
-              <div className={`block w-14 h-8 rounded-full ${useCloudflare ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
-              <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition ${useCloudflare ? 'transform translate-x-6' : ''}`}></div>
-            </div>
-          </label>
+          <div className="flex items-center">
+            <img src={awsLogo} alt="AWS S3" className="h-8 mr-2" />
+            <label className="flex items-center cursor-pointer">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={useCloudflare}
+                  onChange={handleToggleCloudflare}
+                />
+                <div className={`block w-14 h-8 rounded-full ${useCloudflare ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
+                <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition ${useCloudflare ? 'transform translate-x-6' : ''}`}></div>
+              </div>
+            </label>
+            <img src={cloudflareLogo} alt="Cloudflare R2" className="h-8 ml-2" />
+          </div>
         </div>
 
         <h2 className="text-xl font-semibold mb-4">Generate and Download Dummy File</h2>
