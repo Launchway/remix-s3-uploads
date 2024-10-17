@@ -19,7 +19,7 @@ function generateDummyContent(): { content: string; fileName: string } {
   const name = faker.person.fullName();
   const email = faker.internet.email();
   const date = faker.date.recent().toISOString();
-  const fileSize = Buffer.byteLength(paragraphs, 'utf8');
+  const fileSize = Buffer.byteLength(paragraphs, "utf8");
 
   // Generate a random file name with a random ID prefix
   const randomId = faker.string.alphanumeric(8);
