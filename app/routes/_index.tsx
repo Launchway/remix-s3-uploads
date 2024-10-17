@@ -10,14 +10,13 @@ import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 import { useEffect, useState } from "react";
-import { getSession, sessionStorage } from "../lib/sessions";
-// Add this import
+import { getSession, commitSession } from "../lib/sessions.server";
 import * as crypto from "crypto";
 import { UploadDestinationToggle } from "~/components/upload-destination-toggle";
 import { UserSessionInfo } from "~/components/user-session-info";
 import { DummyFileGenerator } from "~/components/dummy-file-generator";
 import { UploadedFilesList } from "~/components/uploaded-files-list";
-import { getBucketPathPrefix } from "~/lib/uploads";
+import { generateFileKey, getBucketPathPrefix } from "~/lib/uploads";
 
 const MAX_FILE_SIZE = 1 * 1024; // 1KB
 const ALLOWED_FILE_TYPES = ["text/plain"];
@@ -57,76 +56,56 @@ export const loader: LoaderFunction = async ({ request }) => {
 
   const s3Client = createS3Client(useCloudflare);
 
-  const key = `${getBucketPathPrefix(userId)}/${Date.now()}-${Math.random()
-    .toString(36)
-    .substring(2, 15)}`;
-  const bucketName = process.env.UPLOADS_BUCKET_NAME;
-  if (!bucketName) {
-    throw new Error(
-      "UPLOADS_BUCKET_NAME is not defined in the environment variables"
-    );
-  }
+  const key = generateFileKey(userId);
+  const bucketName = process.env.UPLOADS_BUCKET_NAME!;
 
-  try {
-    const { url, fields } = await createPresignedPost(s3Client, {
-      Bucket: bucketName,
-      Key: key,
-      Conditions: [
-        ["content-length-range", 0, MAX_FILE_SIZE],
-        ["eq", "$Content-Type", ALLOWED_FILE_TYPES.join(",")],
-        ["starts-with", "$key", getBucketPathPrefix(userId)],
-      ],
-      Expires: 3600,
-    });
+  const { url, fields } = await createPresignedPost(s3Client, {
+    Bucket: bucketName,
+    Key: key,
+    Conditions: [
+      ["content-length-range", 0, MAX_FILE_SIZE],
+      ["eq", "$Content-Type", ALLOWED_FILE_TYPES.join(",")],
+      ["starts-with", "$key", getBucketPathPrefix(userId)],
+    ],
+    Expires: 3600,
+  });
 
-    // Generate presigned URLs for each uploaded file
-    const filesWithPresignedUrls = await Promise.all(
-      uploadedFiles.map(
-        async (file: {
-          key: string;
-          url: string;
-          uploadedAt: string;
-          originalFileName: string;
-        }) => {
-          const getCommand = new GetObjectCommand({
-            Bucket: bucketName,
-            Key: file.key,
-          });
-          const presignedUrl = await getSignedUrl(s3Client, getCommand, {
-            expiresIn: 3600,
-          });
-          return { ...file, presignedUrl };
-        }
-      )
-    );
-
-    return json(
-      {
-        presignedUrl: url,
-        fields,
-        key,
-        uploadedFiles: filesWithPresignedUrls,
-        useCloudflare,
-        userId,
-      },
-      {
-        headers: {
-          "Set-Cookie": await sessionStorage.commitSession(session),
-        },
+  // Generate presigned URLs for each uploaded file
+  const filesWithPresignedUrls = await Promise.all(
+    uploadedFiles.map(
+      async (file: {
+        key: string;
+        url: string;
+        uploadedAt: string;
+        originalFileName: string;
+      }) => {
+        const getCommand = new GetObjectCommand({
+          Bucket: bucketName,
+          Key: file.key,
+        });
+        const presignedUrl = await getSignedUrl(s3Client, getCommand, {
+          expiresIn: 3600,
+        });
+        return { ...file, presignedUrl };
       }
-    );
-  } catch (error) {
-    console.error("Error generating presigned URL:", error);
-    return json(
-      {
-        error: "Failed to generate upload URL",
-        uploadedFiles,
-        useCloudflare,
-        userId,
+    )
+  );
+
+  return json(
+    {
+      presignedUrl: url,
+      fields,
+      key,
+      uploadedFiles: filesWithPresignedUrls,
+      useCloudflare,
+      userId,
+    },
+    {
+      headers: {
+        "Set-Cookie": await commitSession(session),
       },
-      { status: 500 }
-    );
-  }
+    }
+  );
 };
 
 export const action: ActionFunction = async ({ request }) => {
@@ -136,21 +115,22 @@ export const action: ActionFunction = async ({ request }) => {
   const originalFileName = formData.get("originalFileName") as string;
   const toggleCloudflare = formData.get("toggleCloudflare") as string;
 
-  console.log("action", { key, originalFileName, toggleCloudflare });
   if (toggleCloudflare) {
     const useCloudflare = toggleCloudflare === "true";
     session.set("useCloudflare", useCloudflare);
+    console.log("Action - Toggled Cloudflare:", useCloudflare);
     return json(
       { success: true, useCloudflare },
       {
         headers: {
-          "Set-Cookie": await sessionStorage.commitSession(session),
+          "Set-Cookie": await commitSession(session),
         },
       }
     );
   }
 
   if (!key || !originalFileName) {
+    console.log("Action - Missing key or originalFileName");
     return json(
       { success: false, error: "No file key or original file name provided" },
       { status: 400 }
@@ -166,7 +146,6 @@ export const action: ActionFunction = async ({ request }) => {
       : `s3.${region}.amazonaws.com`
   }/${key}`;
 
-  // Add the new file to the list of uploaded files
   const uploadedFiles = session.get("uploadedFiles") || [];
   uploadedFiles.push({
     key,
@@ -176,14 +155,13 @@ export const action: ActionFunction = async ({ request }) => {
   });
   session.set("uploadedFiles", uploadedFiles);
 
-  console.log("Updated uploadedFiles:", uploadedFiles);
+  console.log("Action - Updated uploadedFiles:", uploadedFiles);
 
-  // Commit the session and return the response
   return json(
     { success: true, url: fileUrl, uploadedFiles },
     {
       headers: {
-        "Set-Cookie": await sessionStorage.commitSession(session),
+        "Set-Cookie": await commitSession(session),
       },
     }
   );
@@ -231,13 +209,8 @@ export default function Upload() {
         Object.entries(loaderData.fields).forEach(([key, value]) => {
           formData.append(key, value as string);
         });
-
-        // Set the Content-Type field explicitly
         formData.set("Content-Type", file.type);
-
-        // Append the file last
         formData.append("file", file, file.name);
-
         await fetch(loaderData.presignedUrl, {
           method: "POST",
           body: formData,
@@ -246,20 +219,9 @@ export default function Upload() {
         const formData2 = new FormData(form);
         formData2.append("key", loaderData.key);
         formData2.append("originalFileName", file.name);
-        const response2 = await fetch(form.action, {
-          method: "POST",
-          body: formData2,
-        });
-
-        if (response2.ok) {
-          // const result = await response2.json();
-          // console.log('Upload success, updated files:', result.uploadedFiles);
-          fileInput.value = ""; // Clear the file input
-          // Refresh the page data after successful upload
-          revalidator.revalidate();
-        } else {
-          throw new Error("Upload failed");
-        }
+        fetcher.submit(formData2, { method: "post" });
+        fileInput.value = ""; // Clear the file input
+        revalidator.revalidate();
       } catch (error) {
         console.error("Error uploading file:", error);
         alert("Error uploading file. Please try again.");
