@@ -11,7 +11,7 @@ export const UploadDestinationToggle = ({
   return (
     <div className="flex items-center">
       <img src={awsLogo} alt="AWS S3" className="h-8 mr-2" />
-      <div className="flex items-center cursor-pointer">
+      <label className="flex items-center cursor-pointer">
         <div className="relative">
           <input
             type="checkbox"
@@ -30,7 +30,7 @@ export const UploadDestinationToggle = ({
             }`}
           ></div>
         </div>
-      </div>
+      </label>
       <img src={cloudflareLogo} alt="Cloudflare R2" className="h-8 ml-2" />
     </div>
   );
