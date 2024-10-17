@@ -1,7 +1,8 @@
 import { json, LoaderFunction, ActionFunction } from "@remix-run/node";
 import { Form, useLoaderData, useActionData, useFetcher, useRevalidator } from "@remix-run/react";
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
+import { createPresignedPost } from "@aws-sdk/s3-presigned-post";;
 import { useState, useEffect } from "react";
 import { formatDate } from "../lib/date";
 import { getSession, sessionStorage } from "../lib/sessions";
@@ -40,15 +41,20 @@ export const loader: LoaderFunction = async ({ request }) => {
 
   const key = `uploads/${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
   const bucketName = process.env.UPLOADS_BUCKET_NAME;
-  
-  const command = new PutObjectCommand({
-    Bucket: bucketName,
-    Key: key,
-    ContentType: "application/octet-stream",
-  });
+  if (!bucketName) {
+    throw new Error("UPLOADS_BUCKET_NAME is not defined in the environment variables");
+  }
 
   try {
-    const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+    const { url, fields } = await createPresignedPost(s3Client, {
+      Bucket: bucketName,
+      Key: key,
+      Conditions: [
+        ["content-length-range", 0, MAX_FILE_SIZE],
+        ["eq", "$Content-Type", "text/plain"],
+      ],
+      Expires: 3600,
+    });
 
     // Generate presigned URLs for each uploaded file
     const filesWithPresignedUrls = await Promise.all(
@@ -62,7 +68,7 @@ export const loader: LoaderFunction = async ({ request }) => {
       })
     );
 
-    return json({ presignedUrl: url, key, uploadedFiles: filesWithPresignedUrls, useCloudflare });
+    return json({ presignedUrl: url, fields, key, uploadedFiles: filesWithPresignedUrls, useCloudflare });
   } catch (error) {
     console.error("Error generating presigned URL:", error);
     return json({ error: "Failed to generate upload URL", uploadedFiles, useCloudflare }, { status: 500 });
@@ -150,16 +156,18 @@ export default function Upload() {
       }
 
       try {
-        await fetch(loaderData.presignedUrl, {
-          method: 'PUT',
-          body: file,
-          headers: { 'Content-Type': file.type },
+        const formData = new FormData();
+        Object.entries(loaderData.fields).forEach(([key, value]) => {
+          formData.append(key, value as string);
         });
+        
+        // Set the Content-Type field explicitly
+        formData.set('Content-Type', 'text/plain');
+        
+        // Append the file last
+        formData.append('file', file, file.name);
 
-        const formData = new FormData(form);
-        formData.append('key', loaderData.key);
-        formData.append('originalFileName', file.name);
-        const response = await fetch(form.action, {
+        const response = await fetch(loaderData.presignedUrl, {
           method: 'POST',
           body: formData,
         });
@@ -222,7 +230,7 @@ export default function Upload() {
         <div className="mb-6">
           <h2 className="text-xl font-semibold mb-3">Upload File</h2>
           <Form method="post" onSubmit={handleSubmit} className="mb-3">
-            <input type="file" name="file" accept=".txt" className="mb-3 w-full" />
+            <input type="file" name="file" accept=".txt, .pdf" className="mb-3 w-full" />
             <button type="submit" className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-300">
               Upload to {useCloudflare ? 'Cloudflare R2' : 'AWS S3'}
             </button>
