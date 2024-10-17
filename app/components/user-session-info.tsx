@@ -1,3 +1,5 @@
+import { getBucketPathPrefix } from "~/lib/uploads";
+
 export const UserSessionInfo = ({ userId }: { userId: string }) => {
   return (
     <div>
@@ -9,8 +11,7 @@ export const UserSessionInfo = ({ userId }: { userId: string }) => {
         </span>
       </p>
       <p className="text-sm text-gray-600">
-        Files will be uploaded to the path: user/{userId}
-        /uploads/
+        Files will be uploaded to the path: {getBucketPathPrefix(userId)}
       </p>
     </div>
   );

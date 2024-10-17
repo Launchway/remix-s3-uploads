@@ -10,7 +10,6 @@ import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 import { useEffect, useState } from "react";
-import { formatDate } from "../lib/date";
 import { getSession, sessionStorage } from "../lib/sessions";
 // Add this import
 import * as crypto from "crypto";
@@ -18,6 +17,7 @@ import { UploadDestinationToggle } from "~/components/upload-destination-toggle"
 import { UserSessionInfo } from "~/components/user-session-info";
 import { DummyFileGenerator } from "~/components/dummy-file-generator";
 import { UploadedFilesList } from "~/components/uploaded-files-list";
+import { getBucketPathPrefix } from "~/lib/uploads";
 
 const MAX_FILE_SIZE = 1 * 1024; // 1KB
 const ALLOWED_FILE_TYPES = ["text/plain"];
@@ -49,7 +49,6 @@ export const loader: LoaderFunction = async ({ request }) => {
   const uploadedFiles = session.get("uploadedFiles") || [];
   const useCloudflare = session.get("useCloudflare") || false;
 
-  // Generate a UUID for the user if it doesn't exist
   let userId = session.get("userId");
   if (!userId) {
     userId = crypto.randomUUID();
@@ -58,7 +57,7 @@ export const loader: LoaderFunction = async ({ request }) => {
 
   const s3Client = createS3Client(useCloudflare);
 
-  const key = `user/${userId}/uploads/${Date.now()}-${Math.random()
+  const key = `${getBucketPathPrefix(userId)}/${Date.now()}-${Math.random()
     .toString(36)
     .substring(2, 15)}`;
   const bucketName = process.env.UPLOADS_BUCKET_NAME;
@@ -75,7 +74,7 @@ export const loader: LoaderFunction = async ({ request }) => {
       Conditions: [
         ["content-length-range", 0, MAX_FILE_SIZE],
         ["eq", "$Content-Type", ALLOWED_FILE_TYPES.join(",")],
-        ["starts-with", "$key", `user/${userId}/`],
+        ["starts-with", "$key", getBucketPathPrefix(userId)],
       ],
       Expires: 3600,
     });
@@ -137,6 +136,7 @@ export const action: ActionFunction = async ({ request }) => {
   const originalFileName = formData.get("originalFileName") as string;
   const toggleCloudflare = formData.get("toggleCloudflare") as string;
 
+  console.log("action", { key, originalFileName, toggleCloudflare });
   if (toggleCloudflare) {
     const useCloudflare = toggleCloudflare === "true";
     session.set("useCloudflare", useCloudflare);
@@ -300,7 +300,8 @@ export default function Upload() {
             </button>
           </Form>
           <p className="text-sm text-gray-600">
-            Only {ALLOWED_FILE_TYPES.join(',')} files are allowed. Maximum file size: 1KB.
+            Only {ALLOWED_FILE_TYPES.join(",")} files are allowed. Maximum file
+            size: 1KB.
           </p>
           <p className="text-sm text-gray-600">
             Note: Uploaded files will be cleared regularly.
