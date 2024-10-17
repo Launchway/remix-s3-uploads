@@ -51,7 +51,7 @@ export const loader: LoaderFunction = async ({ request }) => {
       Key: key,
       Conditions: [
         ["content-length-range", 0, MAX_FILE_SIZE],
-        ["eq", "$Content-Type", "text/plain"],
+        ["eq", "$Content-Type", ALLOWED_FILE_TYPES.join(",")],
       ],
       Expires: 3600,
     });
@@ -147,7 +147,7 @@ export default function Upload() {
     if (file && loaderData.presignedUrl) {
       // Client-side validation
       if (!ALLOWED_FILE_TYPES.includes(file.type)) {
-        alert("Only .txt files are allowed.");
+        alert(`Only ${ALLOWED_FILE_TYPES.join(", ")} files are allowed.`);
         return;
       }
       if (file.size > MAX_FILE_SIZE) {
@@ -162,7 +162,7 @@ export default function Upload() {
         });
         
         // Set the Content-Type field explicitly
-        formData.set('Content-Type', 'text/plain');
+        formData.set('Content-Type', file.type);
         
         // Append the file last
         formData.append('file', file, file.name);
@@ -171,8 +171,16 @@ export default function Upload() {
           method: 'POST',
           body: formData,
         });
+       
+        const formData2 = new FormData(form);
+        formData2.append('key', loaderData.key);
+        formData2.append('originalFileName', file.name);
+        const response2 = await fetch(form.action, {
+          method: 'POST',
+          body: formData2,
+        });
 
-        if (response.ok) {
+        if (response2.ok) {
           fileInput.value = ''; // Clear the file input
           // Refresh the page data after successful upload
           revalidator.revalidate();
