@@ -69,8 +69,9 @@ export const action: ActionFunction = async ({ request }) => {
     originalFileName: formData.get("originalFileName") as string,
   });
 
+  session.set('uploadedFiles',uploadedFiles)
   return json(
-    { success: true, url: fileUrl, uploadedFiles },
+    { success: true },
     {
       headers: {
         "Set-Cookie": await commitSession(session),
@@ -114,7 +115,7 @@ export default function S3Upload() {
         });
 
         // Submit the form to the current URL to update the session
-        const formData2 = new FormData(form);
+        const formData2 = new FormData(form); 
         formData2.append("key", loaderData.key);
         formData2.append("originalFileName", file.name);
         fetcher.submit(formData2, { method: "post" });

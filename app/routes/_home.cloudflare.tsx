@@ -62,8 +62,10 @@ export const action: ActionFunction = async ({ request }) => {
     originalFileName,
   });
 
+  session.set('uploadedFiles',uploadedFiles)
+
   return json(
-    { success: true, url: fileUrl, uploadedFiles },
+    { success: true },
     {
       headers: {
         "Set-Cookie": await commitSession(session),
