@@ -30,7 +30,7 @@ export const loader: LoaderFunction = async ({ request }) => {
     expiresIn: 3600,
   });
 
-  const uploadedFiles = session.get("uploadedFiles") || [];
+  const uploadedFiles = session.get("cloudflareUploadedFiles") || [];
 
   const filesWithPresignedUrls = await generatePresignedUrlsForExistingUploads({
     s3Client,
@@ -54,7 +54,7 @@ export const action: ActionFunction = async ({ request }) => {
   const bucketName = process.env.UPLOADS_BUCKET_NAME;
   const fileUrl = `https://${bucketName}.r2.cloudflarestorage.com`;
 
-  const uploadedFiles = session.get("uploadedFiles") || [];
+  const uploadedFiles = session.get("cloudflareUploadedFiles") || [];
   uploadedFiles.push({
     key,
     url: fileUrl,
@@ -62,7 +62,7 @@ export const action: ActionFunction = async ({ request }) => {
     originalFileName,
   });
 
-  session.set('uploadedFiles',uploadedFiles)
+  session.set('cloudflareUploadedFiles',uploadedFiles)
 
   return json(
     { success: true },

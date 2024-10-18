@@ -38,7 +38,7 @@ export const loader: LoaderFunction = async ({ request }) => {
     Expires: 3600,
   });
 
-  const uploadedFiles = session.get("uploadedFiles") || [];
+  const uploadedFiles = session.get("s3UploadedFiles") || [];
   const filesWithPresignedUrls = await generatePresignedUrlsForExistingUploads({
     s3Client,
     bucketName,
@@ -56,7 +56,7 @@ export const action: ActionFunction = async ({ request }) => {
   const session = await getSession(request);
   const formData = await request.formData();
 
-  const uploadedFiles = session.get("uploadedFiles") || [];
+  const uploadedFiles = session.get("s3UploadedFiles") || [];
   const bucketName = process.env.UPLOADS_BUCKET_NAME;
   const fileUrl = `https://${bucketName}.s3.${
     process.env.AWS_REGION
@@ -69,7 +69,8 @@ export const action: ActionFunction = async ({ request }) => {
     originalFileName: formData.get("originalFileName") as string,
   });
 
-  session.set('uploadedFiles',uploadedFiles)
+  session.set('s3UploadedFiles',uploadedFiles)
+  
   return json(
     { success: true },
     {
