@@ -1,18 +1,13 @@
 import { formatDate } from "~/lib/date";
+import { UploadedFile } from "~/types";
 
 export const UploadedFilesList = ({
   uploadedFiles,
 }: {
-  uploadedFiles: {
-    key: string;
-    url: string;
-    uploadedAt: string;
-    originalFileName: string;
-    presignedUrl: string;
-  }[];
+  uploadedFiles: UploadedFile[];
 }) => {
   return (
-    <div className="bg-white border rounded-lg px-8 pt-6 pb-8">
+    <div className="bg-white ">
       <h2 className="text-2xl font-semibold mb-4">Your Uploaded Files</h2>
       {uploadedFiles && uploadedFiles.length > 0 ? (
         <ul className="space-y-2">
