@@ -5,7 +5,7 @@ import * as crypto from "crypto";
 import { UserSessionInfo } from "~/components/user-session-info";
 import { DummyFileGenerator } from "~/components/dummy-file-generator";
 import { UploadDestinationTabs } from "~/components/upload-destination-tabs";
-
+import githubLogo from "~/images/github.png";
 export const meta: MetaFunction = () => {
   return [
     { title: "Remix S3-compatible uploads demo - Launchway" },
@@ -50,6 +50,11 @@ export default function Upload() {
         <DummyFileGenerator />
         <UploadDestinationTabs />
         <Outlet />
+        <div className="flex flex-row w-full justify-end">
+          <a href="https://github.com/Launchway/remix-s3-uploads">
+            <img height={24} width={24} src={githubLogo}/>
+          </a>
+        </div>
       </div>
     </div>
   );
